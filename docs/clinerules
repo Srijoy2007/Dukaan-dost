@@ -1,0 +1,287 @@
+# DukaanDost — Cline Context Rules
+# Project: WhatsApp-first business management for Indian kirana stores
+# Event: ADLC Hackathon | Team: 4-person squad | Timeline: 72 hours
+# Version: 2.0 | Last updated: August 2026
+
+# =============================================================================
+# PROJECT PHILOSOPHY — READ THIS FIRST
+# =============================================================================
+
+# We are building for "Ramesh Bhaiya" — a 45-year-old kirana store owner in 
+# Tier 2/3 India. He has a smartphone, uses WhatsApp daily, pays via UPI, 
+# but has never used a business app and never will.
+#
+# NORTH STAR: Can Ramesh Bhaiya run his entire business without leaving WhatsApp?
+# If the answer is no, we're doing it wrong. The web dashboard is a BONUS for 
+# power users. The bot is the product.
+#
+# LANGUAGE MATTERS: Primary interface is Hinglish/Hindi. English is secondary.
+# Bot must respond in the same language the user messages in. Voice notes are 
+# first-class citizens, not afterthoughts.
+
+# =============================================================================
+# ARCHITECTURE BOUNDARIES
+# =============================================================================
+
+stack:
+  runtime: nodejs18+
+  framework: express.js
+  database: postgresql14 (neon or aws rds)
+  cache: redis7 (upstash or elasticache)
+  orm: prisma (no raw sql unless performance critical)
+  whatsapp: meta business api (webhooks, not wati/360dialog for hackathon)
+  payments: razorpay test mode (UPI intent + QR generation)
+  speech: google cloud speech-to-text (hindi/en)
+  translation: bhashini api fallback
+  hosting: vercel (landing) + render/railway (api)
+  container: docker compose for local dev
+
+# Monorepo structure — do not deviate
+# /apps
+#   /bot          → webhook handler, nlp, conversation engine
+#   /api          → order service, catalog service, payment service
+#   /landing      → next.js 14 (app router), tailwind, framer-motion
+# /packages
+#   /shared       → types, constants, utils (never import from apps into packages)
+#   /db           → prisma schema, migrations, seed scripts
+#   /config       → eslint, tsconfig presets
+
+# =============================================================================
+# CODE STYLE — KEEP IT HACKATHON-REAL
+# =============================================================================
+
+general:
+  - prefer explicit over clever. Ramesh Bhaiya's business logic is not the place for fp monads.
+  - async/await everywhere. No callback hell, no .then() chains beyond 2 levels.
+  - early returns over nested ifs. guard clauses are your friend.
+  - no var. no any. strict typescript always.
+  - comments explain WHY, not WHAT. the code should read like the doc.
+
+naming:
+  - files: kebab-case.ts (order-service.ts, not OrderService.ts)
+  - functions: camelCase, verb-first (parseOrderMessage, not orderParser)
+  - database tables: snake_case, plural (orders, order_items, merchant_profiles)
+  - api routes: kebab-case (/api/v1/daily-sales, not /api/v1/dailySales)
+  - environment variables: SCREAMING_SNAKE_CASE
+
+# =============================================================================
+# WHATSAPP BOT — THE CORE PRODUCT
+# =============================================================================
+
+bot_rules:
+  # Message parsing is make-or-break. Use regex + keyword extraction, not ML.
+  # 72 hours = no model training. Be pragmatic.
+  parser_patterns:
+    quantity: /\d+/ (extract first number as qty)
+    units: [kg, gm, litre, l, dozen, pack, piece, pc]
+    intent_markers: [bhej do, chahiye, dena, order, bhejo, bhejna, chahiye tha]
+    fallback_behavior: ask_clarifying_question, never guess wildly
+
+  # Response templates must feel human, not robotic
+  # Bad:  "Your order has been received. Order ID: #1234"
+  # Good: "Bhaiya, order aa gaya! 2kg atta, 1L oil. Total ₹145. UPI QR bhej raha hoon 👇"
+
+  tone_guidelines:
+    - use emojis sparingly but warmly (👍, ✅, 💰, 📦)
+    - always include total amount in confirmation
+    - always attach UPI QR code image in payment messages
+    - hindi responses use devanagari script, not roman (hindi users prefer it)
+    - hinglish is acceptable and often preferred: "Aaj ka hisaab ready hai!"
+    - never use english loanwords that confuse ("dashboard", "analytics", "CRM")
+    - instead: "report", "hisaab", "customer list", "bakaya"
+
+  state_machine:
+    - received → confirmed → packed → out_for_delivery → delivered
+    - each transition triggers a whatsapp message to customer
+    - merchant updates status via quick-reply buttons or text commands
+
+# =============================================================================
+# DATABASE — KEEP IT SIMPLE, KEEP IT RELATIONAL
+# =============================================================================
+
+db_rules:
+  - prisma schema is source of truth. no handwritten migrations.
+  - every table needs created_at, updated_at. no exceptions.
+  - soft deletes for orders (status: cancelled), hard deletes for nothing else.
+  - indexing strategy: merchant_id + created_at on orders (primary query pattern)
+  - jsonb only for whatsapp message metadata, nowhere else.
+  - no nulls in business-critical fields. use defaults (0, empty string, false).
+
+# Core tables (do not over-engineer):
+# merchants (id, phone, name, language_pref, created_at)
+# customers (id, merchant_id, phone, name, tags, created_at)  
+# products (id, merchant_id, name, price, unit, stock_qty, low_stock_threshold)
+# orders (id, merchant_id, customer_id, status, total, payment_status, payment_method, created_at)
+# order_items (id, order_id, product_id, qty, unit_price)
+# payments (id, order_id, razorpay_order_id, amount, status, paid_at)
+
+# =============================================================================
+# PAYMENTS — RAZORPAY INTEGRATION
+# =============================================================================
+
+payment_rules:
+  - always use razorpay test keys in dev. never commit live keys.
+  - generate UPI QR per order, not per merchant.
+  - webhook handler must be idempotent (check razorpay_order_id exists before processing).
+  - on payment success: update order.payment_status, notify customer, notify merchant.
+  - on payment failure: polite retry message with fresh QR. max 3 attempts.
+  - settlement report query: group by payment_method (cash vs upi), sum totals.
+
+# =============================================================================
+# API DESIGN — RESTFUL BUT PRAGMATIC
+# =============================================================================
+
+api_rules:
+  - base path: /api/v1
+  - auth: jwt via phone otp (no password, no oauth, no magic links)
+  - all merchant-facing endpoints require merchant_id in token
+  - error format: { success: false, error: string, code: string }
+  - success format: { success: true, data: any }
+  - http codes: 200 (ok), 201 (created), 400 (bad request), 401 (unauth), 500 (server error)
+  - no graphql. rest is fine. we have 72 hours.
+  - rate limit: 100 req/min per phone number (redis sliding window)
+
+# =============================================================================
+# LANDING PAGE — VISUAL IDENTITY LOCK
+# =============================================================================
+
+landing_rules:
+  # Colors — do not deviate. this is brand identity.
+  primary: "#FF9933"    # saffron — warmth, india, energy
+  secondary: "#FFFFFF"  # clean white
+  accent: "#138808"     # india green — growth, success, whatsapp nod
+  background: "#FAF9F6" # off-white with subtle texture
+  text: "#1a1a1a"       # near-black, not pure black
+  muted: "#6b7280"      # gray-500 equivalent
+
+  # Typography
+  english: "Inter, system-ui, sans-serif"
+  hindi: "'Noto Sans Devanagari', 'Mangal', sans-serif"
+
+  # Layout
+  hero: split-screen (50/50 desktop, stacked mobile)
+  trust_badges: 3-column below hero (no app install, hindi+english, free to start)
+  features: 6-card grid (orders, catalog, payments, customers, broadcast, reports)
+  cta: sticky bottom button on mobile, inline on desktop
+
+  # Performance
+  - images: webp, lazy loaded, <200kb each
+  - fonts: subsetted, font-display: swap
+  - target: <3s on 3g, <1.5s on 4g
+  - animations: framer-motion, subtle parallax on hero, float on chat bubbles
+
+# =============================================================================
+# TESTING — MINIMUM VIABLE QUALITY
+# =============================================================================
+
+testing:
+  unit_tests: 
+    - bot parser (hindi, hinglish, english edge cases)
+    - order total calculation (tax, discounts, qty*price)
+    - razorpay webhook signature verification
+  integration_tests:
+    - full flow: whatsapp msg → parsed → order created → qr sent → payment → status update
+    - db transactions (order + items must be atomic)
+  e2e_tests: 
+    - none for hackathon. manual testing on real whatsapp is enough.
+  coverage_target: 60% on critical paths (parser, payment, order creation)
+
+# =============================================================================
+# ENVIRONMENT & SECRETS
+# =============================================================================
+
+env_rules:
+  - .env.example is mandatory. .env is gitignored. never commit secrets.
+  - required vars:
+      DATABASE_URL, REDIS_URL, 
+      META_WEBHOOK_VERIFY_TOKEN, META_ACCESS_TOKEN,
+      RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET, RAZORPAY_WEBHOOK_SECRET,
+      GOOGLE_CLOUD_API_KEY (for speech-to-text),
+      JWT_SECRET, PORT
+  - docker-compose.yml provides local postgres + redis. one command: docker-compose up
+  - ngrok for local webhook testing. tunnel url goes in META_WEBHOOK_URL.
+
+# =============================================================================
+# CONVERSATIONAL INSIGHTS — THE KILLER FEATURE
+# =============================================================================
+
+# These 3 queries must work flawlessly. They are demo-critical.
+insights:
+  daily_sales:
+    query: "SELECT COUNT(*), SUM(total), payment_method FROM orders WHERE merchant_id = $1 AND DATE(created_at) = CURRENT_DATE GROUP BY payment_method"
+    response_template: "Aaj {order_count} orders mile. Total ₹{total}. Cash: ₹{cash} | UPI: ₹{upi}. {pending_count} payments pending."
+
+  stock_check:
+    query: "SELECT name, stock_qty, low_stock_threshold FROM products WHERE merchant_id = $1"
+    response_template: "{product}: {qty}{unit} ({status})" # status: LOW, OK, GOOD
+    flag_low_stock: true
+
+  pending_payments:
+    query: "SELECT c.name, o.total, o.created_at FROM orders o JOIN customers c ON o.customer_id = c.id WHERE o.merchant_id = $1 AND o.status = 'delivered' AND o.payment_status = 'pending'"
+    response_template: "{name}: ₹{amount} ({days_overdue} din se pending)"
+    action: "send_reminder_button" # quick reply
+
+# =============================================================================
+# VOICE NOTES — FIRST CLASS SUPPORT
+# =============================================================================
+
+voice_rules:
+  - incoming voice notes: download from meta cdn, transcribe via google speech-to-text (hi-IN or en-IN)
+  - transcribed text fed into same parser as text messages
+  - outgoing voice notes: generate response text → text-to-speech (google cloud tts, hi-IN voice: hi-IN-Wavenet-C)
+  - max voice note length: 60 seconds. reject longer with polite text message.
+  - critical alerts (low stock, payment due) default to voice note if merchant pref is set
+
+# =============================================================================
+# BMAD + SPEC KIT WORKFLOW (HACKATHON DISCIPLINE)
+# =============================================================================
+
+# We are using BMAD methodology with GitHub Spec Kit. 
+# Before writing code, spec must exist in /specs/
+# Before marking done, acceptance criteria must pass.
+#
+# Story format:
+# story: "As [persona], I can [action] so that [benefit]"
+# ac1: "Given [context], When [action], Then [result]"
+# ac2: "Given [edge case], When [action], Then [result]"
+#
+# No code without a story. No story without acceptance criteria.
+# Commit message format: [story-id] verb noun (e.g., "[DUK-4] implement order parser")
+
+# =============================================================================
+# DEMO DAY PREP — WHAT MATTERS
+# =============================================================================
+
+# 3-minute demo flow (practice until natural):
+# 1. Customer sends "Bhaiya 2kg atta, 1L oil bhej do" (Hindi voice note OR text)
+# 2. Bot parses, confirms order with total + UPI QR
+# 3. Merchant asks "Aaj kitna bikaa?" → gets daily sales summary
+# 4. Merchant asks "Kaun payment nahi kiya?" → sees pending list
+# 5. Payment comes through → both get confirmation
+#
+# Backup plan: screen recording of full flow (in case wifi dies)
+# Demo phone: android with whatsapp business, pre-seeded with 3 customers
+
+# =============================================================================
+# WHAT TO AVOID (ANTI-PATTERNS)
+# =============================================================================
+
+anti_patterns:
+  - do_not_build: full catalog manager with images (out of scope)
+  - do_not_build: subscription billing (post-hackathon)
+  - do_not_build: multi-language beyond hindi/english (post-hackathon)
+  - do_not_build: complex analytics dashboard (read-only orders table is fine, charts are not)
+  - do_not_use: mongodb for relational data (orders, payments need ACID)
+  - do_not_use: microservices in separate repos (monorepo or die in 72h)
+  - do_not_use: machine learning for nlp (regex + keywords = demo-ready)
+  - do_not_use: websockets (whatsapp is already async, polling is fine)
+
+# =============================================================================
+# FINAL REMINDER
+# =============================================================================
+
+# Ramesh Bhaiya doesn't care about our tech stack. He cares that when he asks
+# "Aaj kitna bikaa?" at 9pm after closing his shop, he gets a clear answer
+# in Hindi, with his real numbers, without downloading anything.
+#
+# Build for him. Everything else is noise.
