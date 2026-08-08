@@ -60,7 +60,7 @@ const verifyPayment = async (razorpayPaymentId, razorpayOrderId, razorpaySignatu
 
     return { isValid, status: isValid ? 'paid' : 'failed' };
   } catch (error) {
-    console.error('❌ Payment verification failed:', error);
+    console.error('Payment verification failed:', error);
     throw error;
   }
 };
@@ -74,7 +74,7 @@ const getPaymentStatus = async (razorpayOrderId) => {
       attempts: order.attempts
     };
   } catch (error) {
-    console.error('❌ Fetch payment status failed:', error);
+    console.error(' Fetch payment status failed:', error);
     throw error;
   }
 };

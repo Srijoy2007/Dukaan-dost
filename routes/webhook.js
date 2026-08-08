@@ -33,7 +33,7 @@ router.get('/', (req, res) => {
   const challenge = req.query['hub.challenge'];
 
   if (mode === 'subscribe' && token === VERIFY_TOKEN) {
-    console.log('✅ Webhook verified');
+    console.log(' Webhook verified');
     return res.status(200).send(challenge);
   }
   res.sendStatus(403);
@@ -71,7 +71,7 @@ router.post('/', async (req, res) => {
         if (merchant) {
           session.merchantId = merchant.id;
           session.role = 'customer'; // They're messaging the merchant's business number
-          console.log(`🔗 Linked unknown user to merchant ${merchant.id} via business phone ${businessPhone}`);
+          console.log(` Linked unknown user to merchant ${merchant.id} via business phone ${businessPhone}`);
         }
       }
       
@@ -88,13 +88,13 @@ router.post('/', async (req, res) => {
         const orderId = session.context.pendingOrderId;
         try {
           await approveOrder(orderId);
-          await sendTextMessage(from, '✅ Order approve kar diya! Customer ko confirm bhej diya.');
+          await sendTextMessage(from, ' Order approve kar diya! Customer ko confirm bhej diya.');
           session.state = 'idle';
           session.context.pendingOrderId = null;
           sessionStore.set(from, session);
           return;
         } catch (err) {
-          await sendTextMessage(from, `❌ Approval failed: ${err.message}`);
+          await sendTextMessage(from, ` Approval failed: ${err.message}`);
           return;
         }
       }
@@ -105,13 +105,13 @@ router.post('/', async (req, res) => {
         const orderId = session.context.pendingOrderId;
         try {
           await rejectOrder(orderId, 'Merchant ne reject kiya');
-          await sendTextMessage(from, '❌ Order reject kar diya gaya.');
+          await sendTextMessage(from, ' Order reject kar diya gaya.');
           session.state = 'idle';
           session.context.pendingOrderId = null;
           sessionStore.set(from, session);
           return;
         } catch (err) {
-          await sendTextMessage(from, `❌ Reject failed: ${err.message}`);
+          await sendTextMessage(from, ` Reject failed: ${err.message}`);
           return;
         }
       }
@@ -132,7 +132,7 @@ router.post('/', async (req, res) => {
       session.context.originalText = text;
       sessionStore.set(from, session);
 
-      await sendTextMessage(from, `❓ ${parsed.clarificationQuestion}`);
+      await sendTextMessage(from, ` ${parsed.clarificationQuestion}`);
       return;
     }
 
@@ -203,7 +203,7 @@ async function handleMerchantMessage(from, text, parsed, session) {
   }
 
   if (parsed.intent === 'order') {
-    await sendTextMessage(from, '👋 Aap merchant hain. Aap "stock check", "aaj kitna bika", ya "pending payment" pooch sakte hain.');
+    await sendTextMessage(from, ' Aap merchant hain. Aap "stock check", "aaj kitna bika", ya "pending payment" pooch sakte hain.');
     return;
   }
 
@@ -218,7 +218,7 @@ async function handleCustomerMessage(from, text, parsed, session) {
       const merchant = await getMerchantById(session.merchantId);
 
       if (!merchant) {
-        await sendTextMessage(from, '❌ Dukaan wale ka number set nahi hai.');
+        await sendTextMessage(from, ' Dukaan wale ka number set nahi hai.');
         return;
       }
 

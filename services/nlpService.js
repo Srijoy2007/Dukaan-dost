@@ -174,6 +174,13 @@ const detectIntent = (text) => {
   return { type: 'unknown', subtype: 'unknown' };
 };
 
+// "bhej do", "kar do", "de do", "la do" use "do" as a command particle
+// ("send/do it"), not the number two — but the Hindi-number matcher can't
+// tell that apart from "do kilo" (two kilos). Strip known imperative
+// endings before extracting quantity so "atta bhej do" isn't misread as
+// "2 atta".
+const IMPERATIVE_DO_REGEX = /\b(bhej|de|kar|la|daal|bhijwa)\s*do\b/gi;
+
 const extractItems = (text) => {
   const chunks = text.split(ITEM_SPLIT_REGEX).filter(Boolean);
   const items = [];
@@ -187,7 +194,8 @@ const extractItems = (text) => {
       }
       continue;
     }
-    const quantity = extractNumber(chunk);
+    const quantityText = chunk.replace(IMPERATIVE_DO_REGEX, ' ');
+    const quantity = extractNumber(quantityText);
     const unit = detectUnit(chunk);
     const brand = detectBrand(chunk);
     items.push({
@@ -202,17 +210,14 @@ const extractItems = (text) => {
   return { items, unresolvedChunks };
 };
 
-// ─── SESSION-AWARE PARSING ─────────────────────────────────────────────
-// This is the key fix for Bug 1 & Bug 2. If a session context is passed,
-// we merge the new message into the pending clarification.
+
 
 const parseMessage = (text, sessionContext = null) => {
-  // ── 1. Handle pending clarification from session ─────────────────────
   if (sessionContext && sessionContext.state === 'awaiting_quantity') {
     const qty = extractNumber(text);
     const unit = detectUnit(text);
-    if (qty !== null && sessionContext.partialOrder?.items?.length > 0) {
-      const updatedItems = sessionContext.partialOrder.items.map(item => ({
+    if (qty !== null && sessionContext.context.partialOrder?.items?.length > 0) {
+      const updatedItems = sessionContext.context.partialOrder.items.map(item => ({
         ...item,
         quantity: qty,
         unit: unit || item.unit,
@@ -234,7 +239,7 @@ const parseMessage = (text, sessionContext = null) => {
     const product = detectProduct(text); // user might say "Lays" or "Lays chips"
     
     if (brand || product) {
-      const updatedItems = sessionContext.partialOrder.items.map(item => ({
+      const updatedItems = sessionContext.context.partialOrder.items.map(item => ({
         ...item,
         brand: brand || item.brand,
         product: product || item.product
@@ -250,8 +255,8 @@ const parseMessage = (text, sessionContext = null) => {
     }
     
     // If they just said a brand name like "Lays" with no product keyword
-    if (brand && sessionContext.partialOrder?.items?.length > 0) {
-      const updatedItems = sessionContext.partialOrder.items.map(item => ({
+    if (brand && sessionContext.context.partialOrder?.items?.length > 0) {
+      const updatedItems = sessionContext.context.partialOrder.items.map(item => ({
         ...item,
         brand
       }));

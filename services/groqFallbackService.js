@@ -47,7 +47,7 @@ Rules:
  */
 const parseWithGroq = async (text) => {
   if (!GROQ_API_KEY) {
-    console.warn('⚠️  GROQ_API_KEY not set — skipping Groq fallback.');
+    console.warn('GROQ_API_KEY not set — skipping Groq fallback.');
     return null;
   }
 
