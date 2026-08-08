@@ -271,7 +271,6 @@ const parseMessage = (text, sessionContext = null) => {
     }
   }
 
-  // ── 2. Normal parsing ────────────────────────────────────────────────
   const intent = detectIntent(text);
 
   if (intent.type === 'negation') {
