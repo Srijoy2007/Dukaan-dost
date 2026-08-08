@@ -99,7 +99,7 @@ describe('Webhook with Persona Context', () => {
         }
       });
 
-    expect(response.status).toBe(200); // middleware sends 403 via res.json
+    expect(response.status).toBe(403); // middleware sends 403 via res.json
     expect(response.body.message).toContain('Bhaiya');
     expect(response.body.message).toContain('dukaan wale');
   });
