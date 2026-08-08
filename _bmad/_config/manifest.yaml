@@ -1,0 +1,32 @@
+installation:
+  version: 6.10.0
+  installDate: 2026-08-06T18:21:59.253Z
+  lastUpdated: 2026-08-06T18:21:59.253Z
+modules:
+  - name: core
+    version: 6.10.0
+    installDate: 2026-08-06T18:21:59.119Z
+    lastUpdated: 2026-08-06T18:21:59.249Z
+    source: built-in
+    npmPackage: null
+    repoUrl: null
+  - name: bmm
+    version: 6.10.0
+    installDate: 2026-08-06T18:21:59.049Z
+    lastUpdated: 2026-08-06T18:21:59.253Z
+    source: built-in
+    npmPackage: null
+    repoUrl: null
+ides:
+  - claude-code
+  - codex
+  - cursor
+  - cline
+  - gemini
+  - antigravity
+  - kimi-code
+  - openclaw
+  - opencode
+  - openhands
+  - qwen
+  - roo
