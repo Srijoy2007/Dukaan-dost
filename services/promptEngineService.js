@@ -1,4 +1,3 @@
-
 class PromptEngineService {
   generateSystemPrompt(persona) {
     const parts = [
@@ -30,9 +29,7 @@ class PromptEngineService {
   buildCommunicationStyle(persona) {
     const tone = persona.toneProfile;
     if (!tone) return '';
-
     let style = 'COMMUNICATION STYLE:\n';
-
     if (tone.formalityLevel < 30) {
       style += `- Very casual and friendly. Use "${tone.honorificStyle}" freely.\n`;
       style += `- Use ${tone.emojiDensity} emojis per message.\n`;
@@ -46,38 +43,31 @@ class PromptEngineService {
       style += `- Use "${tone.honorificStyle}" or "Sir/Madam".\n`;
       style += '- Minimal emoji usage (0-1 per message).';
     }
-
     return style;
   }
 
   buildOperationalRules(persona) {
     const rules = [];
-
     if (persona.deliveryEnabled) {
       rules.push('- Track delivery status: Received → Confirmed → Packed → Out for Delivery → Delivered.');
     } else {
       rules.push('- Track pickup status: Received → Confirmed → Packed → Ready for Pickup → Picked Up.');
     }
-
     if (persona.creditEnabled) {
       rules.push('- Maintain an "udhaar book". Flag customers nearing their credit limit.');
     }
-
     if (persona.businessType === 'PHARMACY') {
       rules.push('- NEVER sell prescription medicines without valid prescription mention.');
       rules.push('- Track medicine expiry dates. Alert 30 days before expiry.');
     }
-
     if (persona.businessType === 'BAKERY') {
       rules.push('- Track pre-orders with pickup time slots.');
       rules.push('- Flag perishable items with short shelf life.');
     }
-
     if (persona.businessType === 'TAILOR') {
       rules.push('- Maintain measurement logs for each customer.');
       rules.push('- Track alteration deadlines strictly.');
     }
-
     return 'OPERATIONAL RULES:\n' + rules.join('\n');
   }
 
@@ -86,7 +76,6 @@ class PromptEngineService {
     const active = Object.entries(persona.insightConfig)
       .filter(([_, v]) => v === true)
       .map(([k]) => `- ${k.replace(/([A-Z])/g, ' $1').trim()}`);
-
     if (active.length === 0) return '';
     return 'INSIGHTS YOU PROVIDE:\n' + active.join('\n');
   }

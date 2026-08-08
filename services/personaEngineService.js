@@ -1,4 +1,3 @@
-
 const { PromptEngineService } = require('./promptEngineService');
 
 class PersonaEngineService {
@@ -42,75 +41,38 @@ class PersonaEngineService {
       defaultCatalog: this.buildDefaultCatalog(normalizedType, topProducts)
     };
 
-    // Generate the dynamic system prompt
     personaPayload.systemPrompt = this.promptEngine.generateSystemPrompt(personaPayload);
-
     return personaPayload;
   }
 
   buildToneProfile(tone) {
     const profiles = {
-      casual: {
-        formalityLevel: 15,
-        emojiDensity: 4,
-        honorificStyle: 'bhaiya',
-        greetingStyle: 'Ram Ram'
-      },
-      friendly: {
-        formalityLevel: 45,
-        emojiDensity: 2,
-        honorificStyle: 'bhaiya',
-        greetingStyle: 'Namaste'
-      },
-      formal: {
-        formalityLevel: 75,
-        emojiDensity: 1,
-        honorificStyle: 'ji',
-        greetingStyle: 'Namaste'
-      },
-      very_formal: {
-        formalityLevel: 95,
-        emojiDensity: 0,
-        honorificStyle: 'Sir/Madam',
-        greetingStyle: 'Pranam'
-      }
+      casual: { formalityLevel: 15, emojiDensity: 4, honorificStyle: 'bhaiya', greetingStyle: 'Ram Ram' },
+      friendly: { formalityLevel: 45, emojiDensity: 2, honorificStyle: 'bhaiya', greetingStyle: 'Namaste' },
+      formal: { formalityLevel: 75, emojiDensity: 1, honorificStyle: 'ji', greetingStyle: 'Namaste' },
+      very_formal: { formalityLevel: 95, emojiDensity: 0, honorificStyle: 'Sir/Madam', greetingStyle: 'Pranam' }
     };
-
     return profiles[tone] || profiles.friendly;
   }
 
   buildInsightConfig(businessType) {
     const base = {
-      morningBriefing: true,
-      midDayPulse: false,
-      eveningSettlement: true,
-      weeklyVoiceSummary: false,
-      lowStockAlerts: true,
-      paymentReminders: true
+      morningBriefing: true, midDayPulse: false, eveningSettlement: true,
+      weeklyVoiceSummary: false, lowStockAlerts: true, paymentReminders: true
     };
-
     const specific = {
       pharmacy: { expiryAlerts: true, preOrderAlerts: false },
       bakery: { expiryAlerts: true, preOrderAlerts: true },
-      tailor: { preOrderAlerts: true, expiryAlerts: false },
-      kirana: { expiryAlerts: false, preOrderAlerts: false },
-      stationery: { expiryAlerts: false, preOrderAlerts: false },
-      'general store': { expiryAlerts: false, preOrderAlerts: false }
+      tailor: { preOrderAlerts: true, expiryAlerts: false }
     };
-
     return { ...base, ...(specific[businessType] || {}) };
   }
 
   getGreetingTemplate(lang) {
     const map = {
-      hi: 'Namaste',
-      en: 'Hello',
-      hinglish: 'Namaste',
-      tamil: 'Vanakkam',
-      telugu: 'Namaskaram',
-      marathi: 'Namaskar',
-      bengali: 'Nomoshkar',
-      gujarati: 'Jai Shree Krishna'
+      hi: 'Namaste', en: 'Hello', hinglish: 'Namaste',
+      tamil: 'Vanakkam', telugu: 'Namaskaram', marathi: 'Namaskar',
+      bengali: 'Nomoshkar', gujarati: 'Jai Shree Krishna'
     };
     return map[lang] || 'Namaste';
   }
@@ -127,22 +89,17 @@ class PersonaEngineService {
     if (businessType === 'bakery') {
       return [...replies, isCasual ? 'Pre-order karna hai' : 'Place Pre-order'];
     }
-
     return replies;
   }
 
   buildDefaultCatalog(businessType, topProducts) {
     if (topProducts && topProducts.length > 0) {
       return topProducts.map((name, idx) => ({
-        id: `seed-${idx}`,
-        name,
+        id: `seed-${idx}`, name,
         normalizedName: name.toLowerCase().replace(/\s+/g, '_'),
-        price: 50,
-        unit: 'piece',
-        stockQuantity: 100
+        price: 50, unit: 'piece', stockQuantity: 100
       }));
     }
-
     const defaults = {
       kirana: ['Atta', 'Oil', 'Sugar', 'Dal', 'Rice'],
       pharmacy: ['Paracetamol', 'Cough Syrup', 'Bandages', 'Antiseptic', 'ORS'],
@@ -150,15 +107,11 @@ class PersonaEngineService {
       stationery: ['Notebook', 'Pen', 'Pencil', 'Eraser', 'Sharpener'],
       tailor: ['Stitching', 'Alteration', 'Button', 'Zip', 'Hemming']
     };
-
     const products = defaults[businessType] || defaults.kirana;
     return products.map((name, idx) => ({
-      id: `seed-${idx}`,
-      name,
+      id: `seed-${idx}`, name,
       normalizedName: name.toLowerCase().replace(/\s+/g, '_'),
-      price: 50,
-      unit: 'piece',
-      stockQuantity: 100
+      price: 50, unit: 'piece', stockQuantity: 100
     }));
   }
 }
