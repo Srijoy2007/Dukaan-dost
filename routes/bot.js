@@ -15,7 +15,6 @@ router.post('/message', async (req, res) => {
       return res.status(400).json({ error: 'phoneNumber and message required' });
     }
 
-    // Find merchant or auto-create on START
     let merchant;
     if (merchantId) {
       merchant = await Merchant.findByPk(merchantId);
@@ -23,7 +22,6 @@ router.post('/message', async (req, res) => {
       merchant = await Merchant.findOne({ where: { phoneNumber } });
     }
 
-    // Auto-register if START and no merchant
     if (!merchant && message.toLowerCase().includes('start')) {
       merchant = await Merchant.create({
         phoneNumber: phoneNumber,
@@ -32,7 +30,6 @@ router.post('/message', async (req, res) => {
         whatsappPhoneNumberId: process.env.WHATSAPP_PHONE_NUMBER_ID
       });
 
-      // Add sample products
       const sampleProducts = [
         { name: 'Atta', nameHindi: 'आटा', price: 45, unit: 'kg', stockQuantity: 50, merchantId: merchant.id },
         { name: 'Oil', nameHindi: 'तेल', price: 120, unit: 'litre', stockQuantity: 30, merchantId: merchant.id },
@@ -48,7 +45,7 @@ router.post('/message', async (req, res) => {
       return res.json({
         success: true,
         merchantId: merchant.id,
-        message: '🎉 Merchant registered! 5 sample products added. Send "2kg atta bhej do" to place an order.',
+        message: ' Merchant registered! 5 sample products added. Send "2kg atta bhej do" to place an order.',
         language: merchant.language
       });
     }
@@ -86,14 +83,14 @@ router.post('/message', async (req, res) => {
       response = {
         ...response,
         message: language === 'hindi'
-          ? '❓ मुझे समझ नहीं आया।'
-          : '❓ Samajh nahi aaya. Aap "2kg atta bhej do" ya "aaj kitna bikaa" pooch sakte hain.'
+          ? ' मुझे समझ नहीं आया।'
+          : 'Samajh nahi aaya. Aap "2kg atta bhej do" ya "aaj kitna bikaa" pooch sakte hain.'
       };
     }
 
     res.json(response);
   } catch (error) {
-    console.error('❌ Bot message error:', error);
+    console.error(' Bot message error:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -109,7 +106,7 @@ router.post('/insight', async (req, res) => {
     const insight = await getInsight(merchantId, inquiryType, language || 'hinglish');
     res.json({ insight, inquiryType, language: language || 'hinglish' });
   } catch (error) {
-    console.error('❌ Insight error:', error);
+    console.error(' Insight error:', error);
     res.status(500).json({ error: error.message });
   }
 });

@@ -3,7 +3,45 @@ const Customer = require('./Customer');
 const Product = require('./Product');
 const Order = require('./Order');
 const OrderItem = require('./OrderItem');
+// Add these lines alongside your existing models
+const BusinessPersona = require('./BusinessPersona');
+const BotConfig = require('./BotConfig');
+const CustomerMemory = require('./CustomerMemory');
+// At the top, with your other requires:
+const BusinessPersona = require('./BusinessPersona');
+const BotConfig = require('./BotConfig');
+const CustomerMemory = require('./CustomerMemory');
 
+// In your models object (where you define db.Merchant, db.Customer, etc.):
+const db = {
+  Merchant: Merchant,
+  Customer: Customer,
+  Order: Order,
+  OrderItem: OrderItem,
+  Product: Product,
+  // ADD THESE THREE:
+  BusinessPersona: BusinessPersona(sequelize, Sequelize.DataTypes),
+  BotConfig: BotConfig(sequelize, Sequelize.DataTypes),
+  CustomerMemory: CustomerMemory(sequelize, Sequelize.DataTypes)
+};
+
+// After the models object, add this loop (if not already there):
+Object.keys(db).forEach(modelName => {
+  if (db[modelName].associate) {
+    db[modelName].associate(db);
+  }
+});
+// In your models object, add:
+BusinessPersona: BusinessPersona(sequelize, DataTypes),
+BotConfig: BotConfig(sequelize, DataTypes),
+CustomerMemory: CustomerMemory(sequelize, DataTypes)
+
+// Run associations:
+Object.keys(models).forEach((modelName) => {
+  if (models[modelName].associate) {
+    models[modelName].associate(models);
+  }
+});
 // Define associations
 Merchant.hasMany(Customer, { foreignKey: 'merchantId', as: 'customers' });
 Customer.belongsTo(Merchant, { foreignKey: 'merchantId', as: 'merchant' });

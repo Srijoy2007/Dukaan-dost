@@ -39,7 +39,6 @@ router.get('/', (req, res) => {
   res.sendStatus(403);
 });
 
-// ─── MAIN MESSAGE HANDLER ──────────────────────────────────────────────
 router.post('/', async (req, res) => {
   res.sendStatus(200);
 
@@ -55,7 +54,7 @@ router.post('/', async (req, res) => {
     const text = message.text.body.trim();
     const businessPhone = value?.metadata?.display_phone_number; // Your WABA number
 
-    console.log(`📩 ${from}: ${text}`);
+    console.log(` ${from}: ${text}`);
 
     // ── 1. Get or create session ───────────────────────────────────────
     let session = sessionStore.get(from);
@@ -65,7 +64,6 @@ router.post('/', async (req, res) => {
       session.role = roleInfo.role;
       session.merchantId = roleInfo.merchantId;
 
-      // CRITICAL FIX: If unknown user, find merchant by the business phone they messaged
       if (session.role === 'unknown' && businessPhone) {
         const merchant = await getMerchantByBusinessPhone(businessPhone);
         if (merchant) {
@@ -78,7 +76,6 @@ router.post('/', async (req, res) => {
       sessionStore.set(from, session);
     }
 
-    // ── 2. Handle merchant approval responses ────────────────────────
     const lowerText = text.toLowerCase();
     const approvalKeywords = ['yes', 'haan', 'han', 'approve', 'confirm', 'ok', 'theek hai', 'h', 'hanji', 'y'];
     const rejectKeywords = ['no', 'nahi', 'reject', 'cancel', 'mat karo', 'n', 'na', 'nope'];
@@ -117,10 +114,8 @@ router.post('/', async (req, res) => {
       }
     }
 
-    // ── 3. Parse message WITH session context ──────────────────────────
     const parsed = await parseMessageWithFallback(text, session);
 
-    // ── 4. Handle clarification responses ────────────────────────────
     if (parsed.needsClarification) {
       session.state = parsed.clarificationType === 'quantity_missing' ? 'awaiting_quantity' 
                     : parsed.clarificationType === 'brand_missing' ? 'awaiting_brand' 
@@ -136,7 +131,6 @@ router.post('/', async (req, res) => {
       return;
     }
 
-    // ── 5. Handle negation ───────────────────────────────────────────
     if (parsed.intent === 'negation') {
       session.state = 'idle';
       session.context = { partialOrder: null, pendingOrderId: null, lastQuestion: null, customerPhone: null };
@@ -145,7 +139,6 @@ router.post('/', async (req, res) => {
       return;
     }
 
-    // ── 6. ROUTE BY ROLE ─────────────────────────────────────────────
     if (session.role === 'merchant') {
       await handleMerchantMessage(from, text, parsed, session);
       return;
@@ -156,16 +149,13 @@ router.post('/', async (req, res) => {
       return;
     }
 
-    // ── UNKNOWN USER ───────────────────────────────────────────────────
     await handleUnknownUser(from, text, parsed, session);
 
   } catch (err) {
     console.error('Webhook error:', err);
-    // Don't crash, but log it
   }
 });
 
-// ─── MERCHANT HANDLER ──────────────────────────────────────────────────
 async function handleMerchantMessage(from, text, parsed, session) {
   if (parsed.intent === 'inquiry') {
     const merchantId = session.merchantId;
@@ -210,7 +200,6 @@ async function handleMerchantMessage(from, text, parsed, session) {
   await sendTextMessage(from, 'Namaste! Aap stock check, sales report, pending payments, ya customer count pooch sakte hain.');
 }
 
-// ─── CUSTOMER HANDLER ──────────────────────────────────────────────────
 async function handleCustomerMessage(from, text, parsed, session) {
   if (parsed.intent === 'order') {
     try {
@@ -222,21 +211,17 @@ async function handleCustomerMessage(from, text, parsed, session) {
         return;
       }
 
-      // 1. Send approval request to MERCHANT's personal WhatsApp
       const approvalMsg = getMerchantApprovalMessage(order, orderItems, customer);
       
-      // Try buttons first, fallback to text
       try {
         await sendButtonMessage(merchant.phoneNumber, approvalMsg, [
-          { id: `approve_${order.id}`, title: '✅ Approve' },
-          { id: `reject_${order.id}`, title: '❌ Reject' }
+          { id: `approve_${order.id}`, title: ' Approve' },
+          { id: `reject_${order.id}`, title: ' Reject' }
         ]);
       } catch (btnErr) {
-        // Buttons might fail if merchant hasn't opted in, send plain text
         await sendTextMessage(merchant.phoneNumber, approvalMsg + '\n\nReply: YES or NO');
       }
 
-      // 2. Set merchant session to await approval
       const merchantSession = sessionStore.get(merchant.phoneNumber) || sessionStore.create(merchant.phoneNumber);
       merchantSession.state = 'awaiting_approval_response';
       merchantSession.context.pendingOrderId = order.id;
@@ -244,10 +229,9 @@ async function handleCustomerMessage(from, text, parsed, session) {
       merchantSession.merchantId = merchant.id;
       sessionStore.set(merchant.phoneNumber, merchantSession);
 
-      // 3. Tell customer to wait (THE "PLEASE WAIT" MESSAGE)
       await sendTextMessage(from, 
         `⏳ Order mil gaya! ${merchant.storeName || 'Dukaan wale'} bhaiya jald approve karenge.\n` +
-        `Aapko confirm message aa jayega. 🙏`
+        `Aapko confirm message aa jayega. `
       );
 
       // Clear customer session
@@ -256,7 +240,7 @@ async function handleCustomerMessage(from, text, parsed, session) {
 
     } catch (err) {
       console.error('Order creation error:', err);
-      await sendTextMessage(from, `❌ ${err.message}`);
+      await sendTextMessage(from, ` ${err.message}`);
     }
     return;
   }
@@ -275,19 +259,17 @@ async function handleCustomerMessage(from, text, parsed, session) {
   await sendTextMessage(from, parsed.fallbackResponse || 'Samajh nahi aaya. "2kg atta bhej do" jaise likhein.');
 }
 
-// ─── UNKNOWN USER ──────────────────────────────────────────────────────
 async function handleUnknownUser(from, text, parsed, session) {
   await sendTextMessage(from, 
-    `👋 Namaste! Aap DukaanDost se baat kar rahe hain.\n\n` +
+    ` Namaste! Aap DukaanDost se baat kar rahe hain.\n\n` +
     `Dukaan wale hain? "register merchant" likhein.\n` +
     `Customer hain? Seedha order dein: "2kg atta bhej do"`
   );
 }
 
-// ─── HELPERS ───────────────────────────────────────────────────────────
 function formatRecentOrders(orders) {
   if (orders.length === 0) return 'Koi recent order nahi hai.';
-  let msg = `📋 Recent Orders:\n\n`;
+  let msg = ` Recent Orders:\n\n`;
   orders.forEach(o => {
     const emoji = o.status === 'delivered' ? '✅' : o.status === 'pending_approval' ? '⏳' : o.status === 'rejected' ? '❌' : '📦';
     msg += `${emoji} ${o.id.slice(0,8)} | ${o.customer?.name || 'Unknown'} | ₹${o.totalAmount} | ${o.status}\n`;
@@ -296,7 +278,7 @@ function formatRecentOrders(orders) {
 }
 
 function formatCustomerOrders(orders) {
-  let msg = `📦 Aapke Orders:\n\n`;
+  let msg = ` Aapke Orders:\n\n`;
   orders.forEach(o => {
     const emoji = o.status === 'delivered' ? '✅' : o.status === 'pending_approval' ? '⏳' : o.status === 'rejected' ? '❌' : '📦';
     msg += `${emoji} Order ${o.id.slice(0,8)} | ₹${o.totalAmount} | ${o.status}\n`;

@@ -70,7 +70,7 @@ describe('PersonaEngineService', () => {
       expect(persona.systemPrompt).toContain('prescription');
       expect(persona.systemPrompt).toContain('pickup-only');
       expect(persona.systemPrompt).toContain('cash/UPI only');
-      expect(persona.quickReplyDefaults).toContain('Prescription upload karein');
+      expect(persona.quickReplyDefaults).toContain('Upload Prescription');
     });
 
     it('should generate a bakery persona with pre-order alerts', () => {
